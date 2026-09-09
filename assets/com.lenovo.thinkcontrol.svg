@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#242424"/>
+      <stop offset="100%" stop-color="#121212"/>
+    </linearGradient>
+    <linearGradient id="redGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff4444"/>
+      <stop offset="100%" stop-color="#cc0000"/>
+    </linearGradient>
+    <linearGradient id="cyanAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d2ff"/>
+      <stop offset="100%" stop-color="#0080ff"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Card -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)" stroke="#3a3a3a" stroke-width="2"/>
+  
+  <!-- Sliders / Controls Graphic -->
+  <rect x="28" y="38" width="72" height="6" rx="3" fill="#333333"/>
+  <rect x="28" y="38" width="45" height="6" rx="3" fill="url(#cyanAccent)"/>
+  <circle cx="73" cy="41" r="7" fill="#ffffff" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))"/>
+
+  <rect x="28" y="62" width="72" height="6" rx="3" fill="#333333"/>
+  <rect x="28" y="62" width="56" height="6" rx="3" fill="url(#cyanAccent)"/>
+  <circle cx="84" cy="65" r="7" fill="#ffffff" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))"/>
+
+  <rect x="28" y="86" width="72" height="6" rx="3" fill="#333333"/>
+  <rect x="28" y="86" width="28" height="6" rx="3" fill="url(#cyanAccent)"/>
+  <circle cx="56" cy="89" r="7" fill="#ffffff" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.5))"/>
+
+  <!-- ThinkPad Iconic Red Dot -->
+  <circle cx="96" cy="26" r="8" fill="url(#redGlow)" stroke="#ff6b6b" stroke-width="1.5"/>
+</svg>
