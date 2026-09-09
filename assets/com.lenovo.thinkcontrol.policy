@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+
+  <vendor>ThinkControl Project</vendor>
+  <vendor_url>https://github.com/anggiyawan/ThinkControl</vendor_url>
+  <icon_name>com.lenovo.thinkcontrol</icon_name>
+
+  <action id="com.lenovo.thinkcontrol.helper">
+    <description>Configure ThinkPad Hardware Settings</description>
+    <description xml:lang="id">Konfigurasi Pengaturan Perangkat Keras ThinkPad</description>
+    <message>Authentication is required to adjust ThinkPad hardware settings and battery thresholds</message>
+    <message xml:lang="id">Otorisasi diperlukan untuk mengubah pengaturan perangkat keras dan ambang batas baterai ThinkPad</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/thinkcontrol-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">false</annotate>
+  </action>
+
+</policyconfig>
+

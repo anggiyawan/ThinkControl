@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""
+ThinkControl Privileged Helper
+Executes hardware changes safely with strict argument validation.
+"""
+import sys
+import os
+import json
+import glob
+
+CONFIG_PATH = "/etc/thinkcontrol.json"
+PLATFORM_PROFILE = "/sys/firmware/acpi/platform_profile"
+PLATFORM_PROFILE_CHOICES = "/sys/firmware/acpi/platform_profile_choices"
+KBD_BACKLIGHT = "/sys/class/leds/tpacpi::kbd_backlight/brightness"
+LID_LOGO_DOT = "/sys/class/leds/tpacpi::lid_logo_dot/brightness"
+DMI_SERIAL = "/sys/class/dmi/id/product_serial"
+
+def safe_write(path, content):
+    if not os.path.exists(path):
+        return False, f"Path does not exist: {path}"
+    try:
+        with open(path, "w") as f:
+            f.write(str(content).strip() + "\n")
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+def load_config():
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_config(cfg):
+    try:
+        os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+        with open(CONFIG_PATH, "w") as f:
+            json.dump(cfg, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Warning: Could not save config: {e}", file=sys.stderr)
+        return False
+
+def set_battery_thresholds(bat_name, start_val, end_val, persist=True):
+    try:
+        start = int(start_val)
+        end = int(end_val)
+    except ValueError:
+        return False, "Thresholds must be integers"
+
+    if not (0 <= start <= 99 and 1 <= end <= 100 and start < end):
+        return False, f"Invalid threshold range: {start} -> {end}"
+
+    if not bat_name.isalnum() or not bat_name.startswith("BAT"):
+        return False, f"Invalid battery name: {bat_name}"
+
+    bat_dir = f"/sys/class/power_supply/{bat_name}"
+    if not os.path.isdir(bat_dir):
+        return False, f"Battery device {bat_name} not found"
+
+    start_nodes = [
+        f"{bat_dir}/charge_control_start_threshold",
+        f"{bat_dir}/charge_start_threshold"
+    ]
+    end_nodes = [
+        f"{bat_dir}/charge_control_end_threshold",
+        f"{bat_dir}/charge_stop_threshold"
+    ]
+
+    # Read current end threshold to determine safe write order
+    # If new start >= current end, writing start first causes -EINVAL in kernel
+    curr_end = 100
+    for node in end_nodes:
+        if os.path.exists(node):
+            try:
+                with open(node, "r") as f:
+                    v = f.read().strip()
+                if v.isdigit():
+                    curr_end = int(v)
+                    break
+            except Exception:
+                pass
+
+    def try_write(write_end_first):
+        order = [(end_nodes, end), (start_nodes, start)] if write_end_first else [(start_nodes, start), (end_nodes, end)]
+        all_ok = True
+        errs = []
+        any_found = False
+        for nodes, val in order:
+            node_written = False
+            for node in nodes:
+                if os.path.exists(node):
+                    any_found = True
+                    ok, err = safe_write(node, val)
+                    if ok:
+                        node_written = True
+                    else:
+                        errs.append(f"{os.path.basename(node)}: {err}")
+            if any_found and not node_written:
+                all_ok = False
+        return (all_ok and any_found), errs
+
+    write_end_first = (start >= curr_end)
+    ok, errs = try_write(write_end_first)
+    if not ok:
+        ok, errs = try_write(not write_end_first)
+
+    if ok:
+        if persist:
+            cfg = load_config()
+            if "batteries" not in cfg:
+                cfg["batteries"] = {}
+            cfg["batteries"][bat_name] = {"start": start, "end": end}
+            save_config(cfg)
+        return True, ""
+    return False, "; ".join(errs) if errs else "No threshold sysfs nodes available"
+
+def set_platform_profile(profile_name, persist=True):
+    if not os.path.exists(PLATFORM_PROFILE_CHOICES):
+        return False, "Platform profiles not supported"
+
+    try:
+        with open(PLATFORM_PROFILE_CHOICES, "r") as f:
+            choices = f.read().split()
+    except Exception as e:
+        return False, str(e)
+
+    if profile_name not in choices:
+        return False, f"Invalid profile '{profile_name}'. Allowed: {choices}"
+
+    ok, err = safe_write(PLATFORM_PROFILE, profile_name)
+    if ok and persist:
+        cfg = load_config()
+        cfg["platform_profile"] = profile_name
+        save_config(cfg)
+    return ok, err
+
+def set_kbd_backlight(level_str, persist=True):
+    try:
+        level = int(level_str)
+    except ValueError:
+        return False, "Backlight level must be an integer"
+
+    if not (0 <= level <= 2):
+        return False, "Backlight level must be between 0 and 2"
+
+    ok, err = safe_write(KBD_BACKLIGHT, level)
+    if ok and persist:
+        cfg = load_config()
+        cfg["kbd_backlight"] = level
+        save_config(cfg)
+    return ok, err
+
+def set_lid_logo_dot(val_str, persist=True):
+    try:
+        val = int(val_str)
+    except ValueError:
+        return False, "Lid logo dot value must be an integer"
+
+    val = 255 if val > 0 else 0
+    ok, err = safe_write(LID_LOGO_DOT, val)
+    if ok and persist:
+        cfg = load_config()
+        cfg["lid_logo_dot"] = val
+        save_config(cfg)
+    return ok, err
+
+def get_serial(persist=True):
+    if not os.path.exists(DMI_SERIAL):
+        return False, "Serial DMI node not found"
+    try:
+        with open(DMI_SERIAL, "r") as f:
+            serial = f.read().strip()
+        if not serial:
+            return False, "Empty serial read from DMI"
+        if persist:
+            cfg = load_config()
+            cfg["serial_number"] = serial
+            save_config(cfg)
+        print(serial)
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+def apply_persisted():
+    """Apply saved settings on boot/resume via systemd service"""
+    cfg = load_config()
+    results = []
+
+    # 1. Apply battery thresholds if explicitly configured by user
+    bats = cfg.get("batteries", {})
+    for bat_name, vals in bats.items():
+        start = vals.get("start", 75)
+        end = vals.get("end", 80)
+        ok, err = set_battery_thresholds(bat_name, start, end, persist=False)
+        results.append(f"Battery {bat_name} ({start}-{end}): {'OK' if ok else err}")
+
+    # Fallback if no batteries defined in config: apply default conservation to all found BAT*
+    if not bats:
+        for bat_dir in glob.glob("/sys/class/power_supply/BAT*"):
+            bat_name = os.path.basename(bat_dir)
+            ok, err = set_battery_thresholds(bat_name, 75, 80, persist=False)
+            results.append(f"Auto-detected {bat_name} (75-80): {'OK' if ok else err}")
+
+    # 2. Apply platform profile if saved
+    prof = cfg.get("platform_profile")
+    if prof:
+        ok, err = set_platform_profile(prof, persist=False)
+        results.append(f"Platform profile ({prof}): {'OK' if ok else err}")
+
+    # 3. Apply keyboard backlight if saved
+    if "kbd_backlight" in cfg:
+        ok, err = set_kbd_backlight(cfg["kbd_backlight"], persist=False)
+        results.append(f"Keyboard backlight ({cfg['kbd_backlight']}): {'OK' if ok else err}")
+
+    # 4. Apply lid logo dot if saved
+    if "lid_logo_dot" in cfg:
+        ok, err = set_lid_logo_dot(cfg["lid_logo_dot"], persist=False)
+        results.append(f"Lid logo dot ({cfg['lid_logo_dot']}): {'OK' if ok else err}")
+
+    # 5. Cache serial number if available and not cached yet
+    if os.path.exists(DMI_SERIAL):
+        try:
+            with open(DMI_SERIAL, "r") as f:
+                serial = f.read().strip()
+            if serial and cfg.get("serial_number") != serial:
+                cfg["serial_number"] = serial
+                save_config(cfg)
+                results.append(f"Cached serial number ({serial[:2]}***)")
+        except Exception:
+            pass
+
+    if not results:
+        print("No persisted settings found in /etc/thinkcontrol.json; hardware untouched.")
+    else:
+        print("\n".join(results))
+    return True, ""
+
+def print_usage():
+    print("Usage: thinkcontrol-helper <command> [args...]")
+    print("Commands:")
+    print("  set-battery-thresholds <BAT> <start> <end>")
+    print("  set-platform-profile <profile>")
+    print("  set-kbd-backlight <0-2>")
+    print("  set-lid-logo-dot <0|255>")
+    print("  get-serial")
+    print("  apply-persisted")
+
+def main():
+    if len(sys.argv) < 2:
+        print_usage()
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+
+    if cmd == "set-battery-thresholds":
+        if len(sys.argv) != 5:
+            print("Error: Missing args. Expected: <BAT> <start> <end>", file=sys.stderr)
+            sys.exit(1)
+        ok, err = set_battery_thresholds(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif cmd == "set-platform-profile":
+        if len(sys.argv) != 3:
+            print("Error: Missing profile argument", file=sys.stderr)
+            sys.exit(1)
+        ok, err = set_platform_profile(sys.argv[2])
+    elif cmd == "set-kbd-backlight":
+        if len(sys.argv) != 3:
+            print("Error: Missing level argument", file=sys.stderr)
+            sys.exit(1)
+        ok, err = set_kbd_backlight(sys.argv[2])
+    elif cmd == "set-lid-logo-dot":
+        if len(sys.argv) != 3:
+            print("Error: Missing value argument", file=sys.stderr)
+            sys.exit(1)
+        ok, err = set_lid_logo_dot(sys.argv[2])
+    elif cmd == "get-serial":
+        ok, err = get_serial()
+    elif cmd == "apply-persisted":
+        ok, err = apply_persisted()
+    else:
+        print(f"Error: Unknown command '{cmd}'", file=sys.stderr)
+        print_usage()
+        sys.exit(1)
+
+    if not ok:
+        print(f"Error: {err}", file=sys.stderr)
+        sys.exit(2)
+
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()

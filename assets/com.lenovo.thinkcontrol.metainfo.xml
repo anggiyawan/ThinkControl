@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.lenovo.thinkcontrol</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>ThinkControl</name>
+  <summary>Lenovo Vantage Hardware Control Center for ThinkPad</summary>
+  
+  <developer id="io.github.anggiyawan">
+    <name>Anggiyawan</name>
+  </developer>
+
+  <description>
+    <p>
+      ThinkControl provides an elegant, native Libadwaita control panel for Lenovo ThinkPad laptops on Linux (Zorin OS / Ubuntu).
+    </p>
+    <p>
+      Designed to mirror essential Lenovo Vantage capabilities natively and securely:
+    </p>
+    <ul>
+      <li>Battery Conservation Mode (caps charge at 80% to protect battery longevity)</li>
+      <li>Custom Battery Charge Thresholds (configurable start and stop thresholds)</li>
+      <li>ACPI Platform Profiles (Quiet, Balanced, Extreme Performance)</li>
+      <li>Keyboard Backlight brightness switch (Off, Low, High)</li>
+      <li>ThinkPad iconic Red Dot Lid Logo LED toggle</li>
+      <li>Real-time CPU temperature and battery telemetry monitor</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.lenovo.thinkcontrol.desktop</launchable>
+  <icon type="stock">com.lenovo.thinkcontrol</icon>
+
+  <url type="homepage">https://github.com/anggiyawan/ThinkControl</url>
+  <url type="bugtracker">https://github.com/anggiyawan/ThinkControl/issues</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/anggiyawan/ThinkControl/main/assets/screenshot.png</image>
+      <caption>ThinkControl Main Dashboard showing battery and performance settings</caption>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="1.0.0" date="2026-09-09">
+      <description>
+        <p>Initial release of ThinkControl featuring:</p>
+        <ul>
+          <li>Battery threshold control and conservation mode</li>
+          <li>Thermal and ACPI platform profile switcher</li>
+          <li>Keyboard backlight and lid LED controls</li>
+          <li>Real-time hardware sensors dashboard</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1" />
+
+  <categories>
+    <category>Settings</category>
+    <category>HardwareSettings</category>
+    <category>System</category>
+  </categories>
+</component>

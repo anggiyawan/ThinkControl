@@ -1,0 +1,11 @@
+#!/bin/sh
+# ThinkControl post-suspend hardware state restorer
+case "$1" in
+    post)
+        if [ -x /usr/libexec/thinkcontrol-helper ]; then
+            /usr/libexec/thinkcontrol-helper apply-persisted >/dev/null 2>&1 || true
+        fi
+        ;;
+esac
+exit 0
+

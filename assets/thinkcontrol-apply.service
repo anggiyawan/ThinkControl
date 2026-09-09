@@ -1,0 +1,13 @@
+[Unit]
+Description=ThinkControl Hardware Configuration Restorer
+Documentation=https://github.com/anggiyawan/ThinkControl
+After=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+Wants=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/thinkcontrol-helper apply-persisted
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target sleep.target
